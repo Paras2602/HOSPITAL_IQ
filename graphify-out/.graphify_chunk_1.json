@@ -1,0 +1,22 @@
+{
+  "nodes": [
+    {"id": "user_user", "label": "User Model", "file_type": "code", "source_file": "backend/models/user.py"},
+    {"id": "patient_patientprofile", "label": "Patient Profile Model", "file_type": "code", "source_file": "backend/models/patient.py"},
+    {"id": "doctor_doctorprofile", "label": "Doctor Profile Model", "file_type": "code", "source_file": "backend/models/doctor.py"},
+    {"id": "admin_router", "label": "Admin Router", "file_type": "code", "source_file": "backend/routers/admin.py"},
+    {"id": "auth_router", "label": "Auth Router", "file_type": "code", "source_file": "backend/routers/auth.py"},
+    {"id": "database_get_db", "label": "Database Session Provider", "file_type": "code", "source_file": "backend/database.py"},
+    {"id": "security_hash_password", "label": "Security Utilities", "file_type": "code", "source_file": "backend/utils/security.py"}
+  ],
+  "edges": [
+    {"source": "auth_router", "target": "user_user", "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0},
+    {"source": "auth_router", "target": "patient_patientprofile", "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0},
+    {"source": "auth_router", "target": "security_hash_password", "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0},
+    {"source": "admin_router", "target": "user_user", "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0},
+    {"source": "admin_router", "target": "doctor_doctorprofile", "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0},
+    {"source": "admin_router", "target": "database_get_db", "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0}
+  ],
+  "hyperedges": [],
+  "input_tokens": 1000,
+  "output_tokens": 500
+}

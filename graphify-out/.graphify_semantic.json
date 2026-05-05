@@ -1,0 +1,163 @@
+{
+  "nodes": [
+    {
+      "id": "user_user",
+      "label": "User Model",
+      "file_type": "code",
+      "source_file": "backend/models/user.py"
+    },
+    {
+      "id": "patient_patientprofile",
+      "label": "Patient Profile Model",
+      "file_type": "code",
+      "source_file": "backend/models/patient.py"
+    },
+    {
+      "id": "doctor_doctorprofile",
+      "label": "Doctor Profile Model",
+      "file_type": "code",
+      "source_file": "backend/models/doctor.py"
+    },
+    {
+      "id": "admin_router",
+      "label": "Admin Router",
+      "file_type": "code",
+      "source_file": "backend/routers/admin.py"
+    },
+    {
+      "id": "auth_router",
+      "label": "Auth Router",
+      "file_type": "code",
+      "source_file": "backend/routers/auth.py"
+    },
+    {
+      "id": "database_get_db",
+      "label": "Database Session Provider",
+      "file_type": "code",
+      "source_file": "backend/database.py"
+    },
+    {
+      "id": "security_hash_password",
+      "label": "Security Utilities",
+      "file_type": "code",
+      "source_file": "backend/utils/security.py"
+    },
+    {
+      "id": "frontend_dashboardlayout",
+      "label": "Dashboard Layout",
+      "file_type": "code",
+      "source_file": "frontend/components/DashboardLayout.tsx"
+    },
+    {
+      "id": "frontend_risktimeline",
+      "label": "Risk Timeline Component",
+      "file_type": "code",
+      "source_file": "frontend/components/RiskTimeline.tsx"
+    },
+    {
+      "id": "frontend_api",
+      "label": "Frontend API Library",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts"
+    },
+    {
+      "id": "page_patient_dashboard",
+      "label": "Patient Dashboard Page",
+      "file_type": "code",
+      "source_file": "frontend/app/dashboard/patient/page.tsx"
+    },
+    {
+      "id": "doc_readme",
+      "label": "Project README",
+      "file_type": "document",
+      "source_file": "frontend/README.md"
+    },
+    {
+      "id": "transcript_covid",
+      "label": "COVID-19 Prediction Audio Transcript",
+      "file_type": "document",
+      "source_file": "graphify-out/transcripts/prediction_covid_19_4ed6d7.txt"
+    },
+    {
+      "id": "transcript_malaria",
+      "label": "Malaria Prediction Audio Transcript",
+      "file_type": "document",
+      "source_file": "graphify-out/transcripts/prediction_malaria_1a1d16.txt"
+    }
+  ],
+  "edges": [
+    {
+      "source": "auth_router",
+      "target": "user_user",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "auth_router",
+      "target": "patient_patientprofile",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "auth_router",
+      "target": "security_hash_password",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "admin_router",
+      "target": "user_user",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "admin_router",
+      "target": "doctor_doctorprofile",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "admin_router",
+      "target": "database_get_db",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "page_patient_dashboard",
+      "target": "frontend_dashboardlayout",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "page_patient_dashboard",
+      "target": "frontend_api",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "frontend_dashboardlayout",
+      "target": "frontend_risktimeline",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "transcript_covid",
+      "target": "doc_readme",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 3000,
+  "output_tokens": 1500
+}

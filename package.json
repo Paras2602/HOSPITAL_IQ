@@ -1,0 +1,13 @@
+{
+  "name": "hospitaliq",
+  "version": "1.0.0",
+  "description": "HospitalIQ — AI-Powered Clinical Decision Support Platform",
+  "private": true,
+  "scripts": {
+    "setup": "npm run setup:python && npm run setup:models && npm run setup:frontend",
+    "setup:python": "pip install -r backend/requirements.txt",
+    "setup:models": "python -m backend.ml.train_models",
+    "setup:frontend": "cd frontend && npm install",
+    "dev": "cd frontend && npm run dev"
+  }
+}
