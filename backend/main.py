@@ -4,6 +4,7 @@ load_dotenv()  # Load .env before anything else
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import os
 from datetime import datetime
@@ -18,6 +19,13 @@ from backend.database import init_db
 from backend.routers import auth, admin, doctor, lab, patient, prediction, reports
 from backend.routers import notification_routes, diagnosis_routes
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
+# Initialize limiter with a global 100/minute limit
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,7 +33,6 @@ async def lifespan(app: FastAPI):
     # Seed default admin if not exists
     await _seed_admin()
     yield
-
 
 async def _seed_admin():
     from backend.database import AsyncSessionLocal
@@ -46,13 +53,31 @@ async def _seed_admin():
             await db.commit()
             print("✅ Default admin seeded: admin@hospitaliq.com / Admin@1234")
 
-
 app = FastAPI(
     title="HospitalIQ API",
     description="AI-Powered Clinical Decision Support — Multi-Disease Risk Prediction",
     version="1.0.0",
     lifespan=lifespan,
 )
+
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request, exc):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Rate limit exceeded. Please slow down your requests."}
+    )
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 app.add_middleware(
     CORSMiddleware,

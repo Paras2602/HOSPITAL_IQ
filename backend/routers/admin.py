@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel, EmailStr
@@ -173,6 +174,22 @@ async def get_analytics(
         await db.execute(select(func.count(PredictionRecord.id)))
     ).scalar()
 
+    # Clinical Safety Metrics
+    from backend.models.symptom_models import DiagnosisSession, DiagnosisAuditLog
+    low_confidence_count = (
+        await db.execute(
+            select(func.count(DiagnosisSession.id))
+            .where(DiagnosisSession.status.in_(["low_confidence", "inconclusive"]))
+        )
+    ).scalar()
+    
+    high_risk_alerts = (
+        await db.execute(
+            select(func.count(DiagnosisAuditLog.id))
+            .where(DiagnosisAuditLog.action == "high_risk_alert_triggered")
+        )
+    ).scalar()
+
     # disease breakdown
     disease_result = await db.execute(
         select(PredictionRecord.disease, func.count(PredictionRecord.id))
@@ -186,6 +203,8 @@ async def get_analytics(
         "total_doctors": total_doctors,
         "total_predictions": total_predictions,
         "disease_counts": disease_counts,
+        "low_confidence_count": low_confidence_count,
+        "high_risk_alerts": high_risk_alerts
     }
 
 

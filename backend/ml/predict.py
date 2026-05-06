@@ -33,12 +33,40 @@ def _load_model(disease: str):
     return _model_cache[disease], _meta_cache[disease]
 
 
-def _risk_label(prob: float) -> str:
-    if prob < 0.35:
-        return "low"
-    elif prob < 0.65:
-        return "moderate"
-    return "high"
+def _get_clinical_labels(disease: str, prob: float) -> dict:
+    conf = prob * 100
+    
+    # Disease severities for specialized models
+    severities = {
+        "heart": "Critical",
+        "diabetes": "Severe",
+        "ckd": "Severe",
+        "liver": "Severe"
+    }
+    sev = severities.get(disease, "Moderate")
+    
+    if conf > 85 and sev == "Critical":
+        label = "Critical Risk"
+    elif conf > 70 and sev == "Severe":
+        label = "High Risk"
+    elif conf > 50:
+        label = "Moderate Risk"
+    else:
+        label = "Low Confidence"
+        
+    status = "high_confidence"
+    if conf < 40:
+        status = "inconclusive"
+    elif conf < 70:
+        status = "low_confidence"
+    elif conf < 85:
+        status = "moderate_confidence"
+        
+    return {
+        "risk_label": label,
+        "clinical_status": status,
+        "emergency_warning": "⚠ SEEK IMMEDIATE MEDICAL ATTENTION" if conf > 85 and sev == "Critical" else None
+    }
 
 
 def _recommendations(disease: str, label: str) -> str:
@@ -86,7 +114,10 @@ def predict(disease: str, input_data: dict) -> dict:
 
     # Prediction
     prob = float(model.predict_proba(X)[0][1])
-    label = _risk_label(prob)
+    clinical = _get_clinical_labels(disease, prob)
+    
+    from backend.utils.clinical import format_disease_name
+    display_name = format_disease_name(disease)
 
     # SHAP
     clf = model.named_steps["clf"]
@@ -108,7 +139,7 @@ def predict(disease: str, input_data: dict) -> dict:
     ax.barh(names[::-1], vals[::-1], color=colors[::-1])
     ax.axvline(0, color="white", linewidth=0.8, linestyle="--")
     ax.set_xlabel("SHAP Value (Impact on Prediction)", color="#94a3b8")
-    ax.set_title(f"SHAP Feature Contributions — {disease.title()} Risk", color="white", pad=10)
+    ax.set_title(f"SHAP Feature Contributions — {display_name} Risk", color="white", pad=10)
     ax.set_facecolor("#1e293b")
     fig.patch.set_facecolor("#0f172a")
     ax.tick_params(colors="#94a3b8")
@@ -141,11 +172,14 @@ def predict(disease: str, input_data: dict) -> dict:
     return {
         "risk_probability": round(prob, 4),
         "risk_percent": round(prob * 100, 1),
-        "risk_label": label,
+        "risk_label": clinical["risk_label"],
+        "clinical_status": clinical["clinical_status"],
+        "emergency_warning": clinical["emergency_warning"],
+        "display_name": display_name,
         "shap_values": shap_dict,
         "shap_plot_base64": shap_plot,
         "lime_explanation": lime_dict,
-        "recommendations": _recommendations(disease, label),
+        "recommendations": _recommendations(disease, clinical["risk_label"]),
         "model_version": "v1.0",
         "features_used": features,
     }

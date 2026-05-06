@@ -28,3 +28,4 @@ deep-translator
 httpx
 email-validator
 joblib
+slowapi

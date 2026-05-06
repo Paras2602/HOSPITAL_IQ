@@ -78,9 +78,17 @@ async def get_appointments(
         .order_by(Appointment.created_at.desc())
     )
     appts = result.scalars().all()
+    
+    from backend.models.symptom_models import DiagnosisSession
+    
     out = []
     for a in appts:
         pp = (await db.execute(select(PatientProfile).where(PatientProfile.id == a.patient_id))).scalar_one_or_none()
+        
+        # Check for linked diagnosis session
+        sess_result = await db.execute(select(DiagnosisSession).where(DiagnosisSession.follow_up_appointment_id == a.id))
+        sess = sess_result.scalar_one_or_none()
+        
         out.append({
             "id": a.id,
             "patient_name": pp.full_name if pp else "Unknown",
@@ -91,6 +99,7 @@ async def get_appointments(
             "status": a.status.value,
             "symptoms": a.symptoms,
             "notes": a.notes,
+            "diagnosis_session_id": sess.session_id if sess else None
         })
     return out
 
@@ -104,14 +113,43 @@ async def confirm_appointment(
     appt_id: str,
     req: ConfirmApptRequest,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(doctor_required),
+    current_user: User = Depends(doctor_required),
 ):
     result = await db.execute(select(Appointment).where(Appointment.id == appt_id))
     appt = result.scalar_one_or_none()
     if not appt:
         raise HTTPException(status_code=404, detail="Appointment not found")
+    
     appt.status = AppointmentStatus.confirmed
     appt.confirmed_slot = req.confirmed_slot
+    
+    # Send Notifications
+    try:
+        from backend.utils.notifications import email_service
+        
+        # Get patient and doctor details
+        patient_res = await db.execute(select(PatientProfile, User.email).join(User, PatientProfile.user_id == User.id).where(PatientProfile.id == appt.patient_id))
+        patient_data = patient_res.first()
+        
+        if patient_data:
+            pp, p_email = patient_data
+            # Email to Patient
+            email_service.send_appointment_confirmation(
+                to_email=p_email,
+                patient_name=pp.full_name,
+                doctor_name=current_user.name,
+                date=appt.requested_date,
+                time=req.confirmed_slot
+            )
+            # Email to Doctor
+            email_service.send_email(
+                to_email=current_user.email,
+                subject=f"Appointment Confirmed: {pp.full_name}",
+                body=f"You have a confirmed appointment with {pp.full_name} on {appt.requested_date} at {req.confirmed_slot}."
+            )
+    except Exception as e:
+        print(f"Notification error: {e}")
+
     await db.commit()
     return {"message": "Appointment confirmed"}
 

@@ -94,7 +94,8 @@ def generate_pdf_report(
 
     # Prediction
     story.append(Paragraph("Prediction Results", heading_style))
-    disease = prediction_data.get("disease", "Unknown").title()
+    from backend.utils.clinical import format_disease_name
+    disease = format_disease_name(prediction_data.get("disease", "Unknown"))
     risk_pct = prediction_data.get("risk_percent", 0)
     risk_label = prediction_data.get("risk_label", "unknown")
     risk_color = RISK_COLORS.get(risk_label, colors.gray)
@@ -200,9 +201,9 @@ def _calc_bmi(pt: dict) -> str:
     return "—"
 
 def generate_prescription_pdf(
-    prescription_text: str,
+    prescription_data: dict,
     hospital_name: str = "HospitalIQ",
-    prescription_id: str = "",
+    hospital_address: str = "123 Healthcare Blvd, Medical City, MC 10101",
 ) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -216,6 +217,7 @@ def generate_prescription_pdf(
     styles = getSampleStyleSheet()
     story = []
 
+    # Custom Styles
     title_style = ParagraphStyle(
         "Title", parent=styles["Title"],
         fontSize=22, textColor=BRAND_BLUE, spaceAfter=4
@@ -224,37 +226,127 @@ def generate_prescription_pdf(
         "Sub", parent=styles["Normal"],
         fontSize=10, textColor=BRAND_SLATE
     )
+    heading_style = ParagraphStyle(
+        "Heading", parent=styles["Heading2"],
+        fontSize=13, textColor=BRAND_BLUE, spaceBefore=14, spaceAfter=6
+    )
     body_style = ParagraphStyle(
         "Body", parent=styles["Normal"],
-        fontSize=10, textColor=colors.HexColor("#1e293b"), spaceAfter=4,
-        fontName="Courier" # use monospace for the text block
+        fontSize=10, textColor=BRAND_DARK, leading=14
+    )
+    warning_style = ParagraphStyle(
+        "Warning", parent=styles["Normal"],
+        fontSize=11, textColor=colors.white, alignment=TA_CENTER,
+        leading=14, fontName="Helvetica-Bold"
     )
 
+    # Header
     story.append(Paragraph(f"🏥 {hospital_name}", title_style))
-    story.append(Paragraph("Clinical Prescription", sub_style))
-    story.append(Paragraph(f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC", sub_style))
-    story.append(HRFlowable(width="100%", thickness=1, color=BRAND_BLUE, spaceAfter=12))
+    story.append(Paragraph("Official Clinical Prescription", sub_style))
+    story.append(Paragraph(f"Date: {datetime.utcnow().strftime('%d %B %Y')}", sub_style))
+    story.append(Spacer(1, 4))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=BRAND_BLUE, spaceAfter=12))
 
-    # Convert the formatted text to a simple pre-formatted style
-    for line in prescription_text.split('\n'):
-        # Replacing spaces with non-breaking spaces for Courier to maintain alignment
-        formatted_line = line.replace(' ', '&nbsp;')
-        story.append(Paragraph(formatted_line, body_style))
-        story.append(Spacer(1, 2))
-
-    story.append(Spacer(1, 12))
+    # Patient & Doctor Info Header
+    p_info = prescription_data.get("patient", {})
+    d_info = prescription_data.get("doctor", {})
     
-    # QR Code
-    story.append(Paragraph("Verify Prescription Online", ParagraphStyle("Heading", parent=styles["Heading2"], fontSize=13, textColor=BRAND_BLUE)))
-    qr = qrcode.QRCode(box_size=4, border=2)
-    qr.add_data(f"https://hospitaliq.com/verify/{prescription_id}")
-    qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white")
-    qr_buf = io.BytesIO()
-    qr_img.save(qr_buf, format="PNG")
-    qr_buf.seek(0)
-    qr_rl = RLImage(qr_buf, width=3 * cm, height=3 * cm)
-    story.append(qr_rl)
+    info_rows = [
+        [Paragraph(f"<b>PATIENT:</b> {p_info.get('name', '—')}", body_style), 
+         Paragraph(f"<b>DOCTOR:</b> {d_info.get('name', '—')}", body_style)],
+        [Paragraph(f"<b>Age/Sex:</b> {p_info.get('age', '—')} / {p_info.get('sex', '—')}", body_style),
+         Paragraph(f"<b>Reg No:</b> {d_info.get('registration_number', '—')}", body_style)],
+        [Paragraph(f"<b>Patient ID:</b> {p_info.get('id', '—')}", body_style),
+         Paragraph(f"<b>Qualification:</b> {d_info.get('qualification', '—')}", body_style)]
+    ]
+    info_table = Table(info_rows, colWidths=[9 * cm, 8 * cm])
+    info_table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 10))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=BRAND_SLATE, spaceAfter=12))
+
+    # Diagnosis Section
+    from backend.utils.clinical import format_disease_name
+    formatted_disease = format_disease_name(prescription_data.get("disease", "Unknown"))
+    
+    story.append(Paragraph("Diagnosis", heading_style))
+    story.append(Paragraph(f"<b>Primary:</b> {formatted_disease}", body_style))
+    story.append(Paragraph(f"<b>Severity:</b> {prescription_data.get('severity', 'Moderate')}", body_style))
+    
+    # Emergency Warning Box
+    if str(prescription_data.get("severity", "")).lower() in ["severe", "critical"]:
+        story.append(Spacer(1, 10))
+        warning_data = [[Paragraph("URGENT: This patient requires immediate medical attention.<br/>Please schedule an in-person consultation within 24 hours.", warning_style)]]
+        warning_table = Table(warning_data, colWidths=[16 * cm])
+        warning_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#ef4444")),
+            ("BOX", (0, 0), (-1, -1), 2, colors.HexColor("#991b1b")),
+            ("TOPPADDING", (0, 0), (-1, -1), 12),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+        ]))
+        story.append(warning_table)
+        story.append(Spacer(1, 10))
+
+    # Medicines
+    story.append(Paragraph("Prescribed Medications", heading_style))
+    meds = prescription_data.get("medicines", [])
+    if meds:
+        med_rows = [["#", "Medicine", "Dosage", "Frequency", "Duration"]]
+        for i, m in enumerate(meds, 1):
+            med_rows.append([
+                str(i),
+                Paragraph(f"<b>{m.get('name', '—')}</b>", body_style),
+                m.get("dosage", "—"),
+                m.get("frequency", "—"),
+                m.get("duration", "—")
+            ])
+        
+        med_table = Table(med_rows, colWidths=[1 * cm, 6 * cm, 3 * cm, 4 * cm, 3 * cm])
+        med_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), BRAND_DARK),
+            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        story.append(med_table)
+    else:
+        story.append(Paragraph("No medications prescribed.", body_style))
+
+    # Advice Section
+    story.append(Paragraph("Clinical Advice & Precautions", heading_style))
+    precautions = prescription_data.get("precautions", "")
+    if precautions:
+        story.append(Paragraph("<b>Precautions:</b>", body_style))
+        for p in precautions.split("\n"):
+            if p.strip():
+                story.append(Paragraph(f"• {p.strip().lstrip('- ')}", body_style))
+    
+    diet = prescription_data.get("dietary_advice", "")
+    if diet:
+        story.append(Spacer(1, 6))
+        story.append(Paragraph("<b>Dietary Advice:</b>", body_style))
+        story.append(Paragraph(diet, body_style))
+
+    story.append(Spacer(1, 20))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=BRAND_SLATE, spaceAfter=20))
+
+    # Footer / Signature
+    footer_rows = [
+        [
+            Paragraph(f"<b>HospitalIQ Clinical Center</b><br/>{hospital_address}<br/>Contact: {d_info.get('contact', 'Support')}", sub_style),
+            Paragraph("<br/><b>[Digitally Verified]</b><br/>Dr. " + d_info.get('name', 'Unknown'), ParagraphStyle("Sig", parent=styles["Normal"], alignment=TA_CENTER, fontSize=10))
+        ]
+    ]
+    footer_table = Table(footer_rows, colWidths=[10 * cm, 7 * cm])
+    story.append(footer_table)
 
     doc.build(story)
     buf.seek(0)

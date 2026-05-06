@@ -11,7 +11,7 @@ from backend.database import get_db
 from backend.models.user import User, UserRole, DoctorProfile
 from backend.models.patient import PatientProfile
 from backend.models.appointment import Appointment, AppointmentStatus
-from backend.models.prediction import PredictionRecord, HealthScore
+from backend.models.prediction import PredictionRecord, HealthScore, HealthTimeline
 from backend.models.lab import LabReport
 from backend.utils.deps import get_current_user, require_role
 
@@ -327,4 +327,33 @@ async def get_lab_reports(
             "created_at": r.created_at.isoformat(),
         }
         for r in reports
+    ]
+
+
+@router.get("/timeline")
+async def get_timeline(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    pp_result = await db.execute(
+        select(PatientProfile).where(PatientProfile.user_id == current_user.id)
+    )
+    pp = pp_result.scalar_one_or_none()
+    if not pp:
+        return []
+
+    result = await db.execute(
+        select(HealthTimeline).where(HealthTimeline.patient_id == pp.id)
+        .order_by(HealthTimeline.recorded_at.desc())
+    )
+    events = result.scalars().all()
+    return [
+        {
+            "id": e.id,
+            "event_type": e.event_type,
+            "title": e.title,
+            "details": e.details,
+            "recorded_at": e.recorded_at.isoformat(),
+        }
+        for e in events
     ]

@@ -55,6 +55,7 @@ class DoctorProfile(Base):
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
     full_name: Mapped[str] = mapped_column(String(255))
     specialization: Mapped[str] = mapped_column(String(255))
+    registration_number: Mapped[str] = mapped_column(String(50), default="REG-772810")
     qualification: Mapped[str] = mapped_column(String(500))
     years_experience: Mapped[int | None] = mapped_column(nullable=True)
     success_rate: Mapped[float | None] = mapped_column(nullable=True)

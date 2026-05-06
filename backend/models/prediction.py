@@ -59,3 +59,18 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     user: Mapped["User"] = relationship("User", back_populates="audit_logs")  # type: ignore
+
+
+class HealthTimeline(Base):
+    __tablename__ = "health_timelines"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
+    patient_id: Mapped[str] = mapped_column(String(36), ForeignKey("patient_profiles.id"))
+    event_type: Mapped[str] = mapped_column(String(50))  # diagnosis|lab|appointment
+    title: Mapped[str] = mapped_column(String(255))
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    patient: Mapped["PatientProfile"] = relationship(  # type: ignore
+        "PatientProfile", back_populates="timeline"
+    )

@@ -53,3 +53,6 @@ class PatientProfile(Base):
     health_scores: Mapped[list["HealthScore"]] = relationship(  # type: ignore
         "HealthScore", back_populates="patient"
     )
+    timeline: Mapped[list["HealthTimeline"]] = relationship(  # type: ignore
+        "HealthTimeline", back_populates="patient"
+    )
